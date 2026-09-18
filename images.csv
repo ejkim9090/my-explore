@@ -1,0 +1,7 @@
+id,image_url,title,prompt,author,likes,type,created_at
+1,https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=900&q=80,Mountain Lake,cinematic mountain lake at golden hour,SampleArtist,128,image,2026-09-18
+2,https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=80,Milky Way,observatory window looking at the milky way and earth,SampleArtist,241,image,2026-09-17
+3,https://images.unsplash.com/photo-1497250681960-ef046c08a56e?auto=format&fit=crop&w=900&q=80,Tropical Garden,lush tropical garden with dramatic sunlight,AIStudio,96,image,2026-09-16
+4,https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=900&q=80,Futuristic Robot,high-end futuristic humanoid robot portrait,VisionLab,302,image,2026-09-15
+5,https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=900&q=80,Ocean,deep blue ocean surface cinematic photography,BlueMoon,76,image,2026-09-14
+6,https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80,Product Concept,studio product photography minimalist premium design,DesignAI,188,image,2026-09-13
