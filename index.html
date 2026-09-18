@@ -1,84 +1,73 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Explore Gallery</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explore Gallery</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="brand">Explore</div>
-    <nav>
-      <button class="nav-item active">◉ <span>Explore</span></button>
-      <button class="nav-item">✦ <span>Create</span></button>
-      <button class="nav-item">◫ <span>Edit</span></button>
-      <button class="nav-item">▦ <span>Organize</span></button>
-    </nav>
-    <div class="section-title">AESTHETICS</div>
-    <nav>
-      <button class="nav-item">◌ <span>Personalize</span></button>
-      <button class="nav-item">▱ <span>Moodboards</span></button>
-      <button class="nav-item">◈ <span>Style Creator</span></button>
-    </nav>
-    <div class="section-title">COMMUNITY</div>
-    <nav>
-      <button class="nav-item">♡ <span>Likes</span></button>
-      <button class="nav-item">◎ <span>Tasks</span></button>
-    </nav>
-    <div class="sidebar-bottom">
-      <button class="nav-item">? <span>Help</span></button>
-      <button class="nav-item">☼ <span>Light Mode</span></button>
-    </div>
+<aside class="sidebar">
+  <div class="brand">Explore</div>
+  <nav>
+    <button class="nav-item active" data-view="explore">◉ <span>Explore</span></button>
+    <button class="nav-item" data-view="liked">♡ <span>Likes</span><b id="likeCount">0</b></button>
+    <button class="nav-item" data-view="all">▦ <span>All Images</span></button>
+  </nav>
+  <div class="section-title">GALLERY</div>
+  <nav>
+    <button class="nav-item" id="importBtn">＋ <span>CSV 가져오기</span></button>
+    <button class="nav-item" id="refreshBtn">↻ <span>새로고침</span></button>
+    <button class="nav-item" id="themeBtn">☼ <span>테마</span></button>
+  </nav>
+  <div class="sidebar-bottom">
+    <button class="nav-item" id="helpBtn">? <span>CSV 도움말</span></button>
+  </div>
+</aside>
+
+<main class="main">
+<header class="topbar">
+  <div class="upload-box" id="dropZone">
+    <label class="file-label" for="csvFile">＋</label><input id="csvFile" type="file" accept=".csv,text/csv">
+    <div><strong>CSV로 이미지 목록 불러오기</strong><span id="fileStatus">images.csv 자동 로드 · 파일을 끌어놓아도 됩니다</span></div>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="densityBtn" title="밀도">⊞</button>
+    <button class="icon-btn" id="settingsBtn" title="설정">☷</button>
+  </div>
+</header>
+
+<section class="toolbar">
+  <div class="tabs">
+    <button class="tab active" data-sort="top">Top Day</button><button class="tab" data-sort="likes">Likes</button><button class="tab" data-sort="new">Latest</button>
+  </div>
+  <div class="right-tools">
+    <label class="search"><span>⌕</span><input id="search" placeholder="Search prompt, title, author, tag..."></label>
+    <button class="filter active" data-type="all">All</button><button class="filter" data-type="image">Images</button><button class="filter" data-type="video">Videos</button>
+    <button class="filter" id="tagBtn">Tags ▾</button>
+  </div>
+</section>
+<div class="tagbar hidden" id="tagbar"></div>
+<div class="stats"><span id="resultCount">0 images</span><span id="activeInfo"></span></div>
+
+<div id="empty" class="empty hidden"><h2>이미지를 추가하세요</h2><p><code>images.csv</code>를 프로젝트 루트에 넣거나 위에 CSV를 끌어놓으세요.</p><button id="sampleBtn" class="primary">샘플 데이터 보기</button></div>
+<section id="gallery" class="gallery" aria-live="polite"></section>
+<div id="sentinel"></div>
+</main>
+
+<dialog id="lightbox" class="lightbox">
+  <button class="close" id="closeLightbox">×</button>
+  <div class="lightbox-media" id="lightboxMedia"></div>
+  <aside class="detail">
+    <div class="detail-row"><div class="detail-author" id="detailAuthor"></div><button class="like-detail" id="detailLike">♡</button></div>
+    <h2 id="detailTitle"></h2><p id="detailPrompt"></p>
+    <div class="chips" id="detailTags"></div>
+    <div class="meta" id="detailMeta"></div>
+    <div class="detail-actions"><button id="copyPrompt" class="primary">프롬프트 복사</button><button id="openOriginal">원본 열기</button></div>
   </aside>
+</dialog>
 
-  <main class="main">
-    <header class="topbar">
-      <div class="upload-box">
-        <label class="file-label" for="csvFile">＋</label>
-        <input id="csvFile" type="file" accept=".csv,text/csv" />
-        <div>
-          <strong>CSV로 이미지 목록 불러오기</strong>
-          <span id="fileStatus">images.csv 형식의 파일을 선택하세요</span>
-        </div>
-      </div>
-      <button class="settings" id="settingsBtn" title="설정">☷</button>
-    </header>
+<dialog id="settings" class="settings-dialog"><form method="dialog"><h3>갤러리 설정</h3><label>열 수 <input id="columnRange" type="range" min="2" max="7" value="5"><output id="columnValue">5</output></label><label>이미지 간격 <input id="gapRange" type="range" min="4" max="20" value="10"><output id="gapValue">10px</output></label><label><input id="autoLoad" type="checkbox" checked> 이미지 원본 비율 유지</label><menu><button>닫기</button></menu></form></dialog>
 
-    <section class="toolbar">
-      <div class="tabs">
-        <button class="tab active" data-sort="top">Top Day</button>
-        <button class="tab" data-sort="likes">Likes</button>
-        <button class="tab" data-sort="new">Latest</button>
-      </div>
-      <div class="right-tools">
-        <label class="search"><span>⌕</span><input id="search" placeholder="Search prompt, author..." /></label>
-        <button class="filter active" data-type="all">All</button>
-        <button class="filter" data-type="image">Images</button>
-        <button class="filter" data-type="video">Videos</button>
-      </div>
-    </section>
-
-    <div id="empty" class="empty hidden">
-      <h2>이미지를 추가하세요</h2>
-      <p>CSV의 <code>image_url</code> 열에 이미지 URL을 넣고 위에서 CSV를 선택하면 됩니다.</p>
-    </div>
-
-    <section id="gallery" class="gallery" aria-live="polite"></section>
-  </main>
-
-  <dialog id="lightbox" class="lightbox">
-    <button class="close" id="closeLightbox">×</button>
-    <div class="lightbox-media"><img id="lightboxImg" alt="" /></div>
-    <aside class="detail">
-      <div class="detail-author" id="detailAuthor"></div>
-      <h2 id="detailTitle"></h2>
-      <p id="detailPrompt"></p>
-      <div class="meta" id="detailMeta"></div>
-      <button id="copyPrompt" class="primary">프롬프트 복사</button>
-    </aside>
-  </dialog>
-
-  <script src="app.js"></script>
-</body>
-</html>
+<div class="toast" id="toast"></div>
+<input id="hiddenFile" type="file" accept=".csv,text/csv" hidden>
+<script src="app.js"></script>
+</body></html>

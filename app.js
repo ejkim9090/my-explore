@@ -1,156 +1,30 @@
-const state = {
-  items: [],
-  sort: 'top',
-  type: 'all',
-  query: '',
-  likes: JSON.parse(localStorage.getItem('exploreLikes') || '{}')
-};
-
-const gallery = document.getElementById('gallery');
-const empty = document.getElementById('empty');
-const fileInput = document.getElementById('csvFile');
-const fileStatus = document.getElementById('fileStatus');
-const searchInput = document.getElementById('search');
-const lightbox = document.getElementById('lightbox');
-
-function parseCSV(text) {
-  const rows = [];
-  let row = [], cell = '', quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i], n = text[i + 1];
-    if (c === '"' && quoted && n === '"') { cell += '"'; i++; continue; }
-    if (c === '"') { quoted = !quoted; continue; }
-    if (c === ',' && !quoted) { row.push(cell.trim()); cell = ''; continue; }
-    if ((c === '\n' || c === '\r') && !quoted) {
-      if (c === '\r' && n === '\n') i++;
-      row.push(cell.trim()); cell = '';
-      if (row.some(v => v !== '')) rows.push(row);
-      row = [];
-      continue;
-    }
-    cell += c;
-  }
-  if (cell.length || row.length) { row.push(cell.trim()); rows.push(row); }
-  if (!rows.length) return [];
-  const headers = rows.shift().map(h => h.replace(/^\uFEFF/, '').trim().toLowerCase());
-  return rows.map((r, idx) => {
-    const o = { id: String(idx + 1) };
-    headers.forEach((h, i) => o[h] = (r[i] ?? '').trim());
-    o.id = o.id || o.uuid || String(idx + 1);
-    o.image_url = o.image_url || o.image || o.url || '';
-    o.title = o.title || o.name || '';
-    o.prompt = o.prompt || '';
-    o.author = o.author || o.username || '';
-    o.type = (o.type || 'image').toLowerCase();
-    o.likes = Number(o.likes || o.like_count || 0) || 0;
-    o.created_at = o.created_at || o.date || '';
-    return o;
-  }).filter(x => x.image_url);
-}
-
-function getVisibleItems() {
-  let arr = [...state.items];
-  if (state.type !== 'all') arr = arr.filter(x => x.type === state.type);
-  if (state.query) {
-    const q = state.query.toLowerCase();
-    arr = arr.filter(x => [x.title, x.prompt, x.author].join(' ').toLowerCase().includes(q));
-  }
-  if (state.sort === 'likes') arr.sort((a,b) => b.likes - a.likes);
-  else if (state.sort === 'new') arr.sort((a,b) => String(b.created_at).localeCompare(String(a.created_at)));
-  else arr.sort((a,b) => b.likes - a.likes);
-  return arr;
-}
-
-function render() {
-  const items = getVisibleItems();
-  gallery.innerHTML = '';
-  empty.classList.toggle('hidden', items.length > 0);
-  items.forEach(item => {
-    const card = document.createElement('article');
-    card.className = 'card';
-    const img = document.createElement('img');
-    img.src = item.image_url;
-    img.alt = item.title || item.prompt || 'image';
-    img.loading = 'lazy';
-    img.onerror = () => { card.style.display = 'none'; };
-
-    const overlay = document.createElement('div');
-    overlay.className = 'card-overlay';
-    const top = document.createElement('div');
-    top.className = 'overlay-top';
-    const author = document.createElement('span');
-    author.textContent = item.author || 'Unknown';
-    const like = document.createElement('button');
-    like.className = 'like' + (state.likes[item.id] ? ' liked' : '');
-    like.textContent = `♥ ${item.likes + (state.likes[item.id] ? 1 : 0)}`;
-    like.onclick = (e) => {
-      e.stopPropagation();
-      state.likes[item.id] = !state.likes[item.id];
-      localStorage.setItem('exploreLikes', JSON.stringify(state.likes));
-      render();
-    };
-    top.append(author, like);
-    const bottom = document.createElement('div');
-    bottom.className = 'overlay-bottom';
-    bottom.textContent = item.prompt || item.title || '';
-    overlay.append(top, bottom);
-    card.append(img, overlay);
-    card.onclick = () => openLightbox(item);
-    gallery.appendChild(card);
-  });
-}
-
-function openLightbox(item) {
-  document.getElementById('lightboxImg').src = item.image_url;
-  document.getElementById('lightboxImg').alt = item.title || '';
-  document.getElementById('detailAuthor').textContent = item.author ? `@${item.author}` : '';
-  document.getElementById('detailTitle').textContent = item.title || 'Untitled';
-  document.getElementById('detailPrompt').textContent = item.prompt || '프롬프트가 없습니다.';
-  document.getElementById('detailMeta').textContent = `${item.type.toUpperCase()}  ·  ♥ ${item.likes}  ·  ${item.created_at || ''}`;
-  document.getElementById('copyPrompt').onclick = async () => {
-    await navigator.clipboard.writeText(item.prompt || '');
-    document.getElementById('copyPrompt').textContent = '복사 완료';
-    setTimeout(() => document.getElementById('copyPrompt').textContent = '프롬프트 복사', 1200);
-  };
-  lightbox.showModal();
-}
-
-document.getElementById('closeLightbox').onclick = () => lightbox.close();
-lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.close(); });
-
-fileInput.addEventListener('change', async e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const text = await file.text();
-  state.items = parseCSV(text);
-  fileStatus.textContent = `${file.name} · ${state.items.length}개 이미지`;
-  render();
-});
-
-searchInput.addEventListener('input', e => { state.query = e.target.value; render(); });
-
-document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  btn.classList.add('active');
-  state.sort = btn.dataset.sort;
-  render();
-}));
-
-document.querySelectorAll('.filter').forEach(btn => btn.addEventListener('click', () => {
-  document.querySelectorAll('.filter').forEach(x => x.classList.remove('active'));
-  btn.classList.add('active');
-  state.type = btn.dataset.type;
-  render();
-}));
-
-document.getElementById('settingsBtn').onclick = () => alert('CSV 열 이름은 README의 형식을 참고하세요.');
-
-// 샘플 데이터: images.csv를 같은 폴더에서 서버로 열 때 자동 표시할 수 있도록 fetch 시도
-fetch('images.csv').then(r => r.ok ? r.text() : Promise.reject()).then(text => {
-  state.items = parseCSV(text);
-  fileStatus.textContent = `images.csv · ${state.items.length}개 이미지`;
-  render();
-}).catch(() => {
-  empty.classList.remove('hidden');
-  render();
-});
+const state={items:[],sort:'top',type:'all',query:'',tag:'',view:'explore',likes:JSON.parse(localStorage.getItem('exploreLikes')||'{}'),page:0,pageSize:30,columns:+localStorage.getItem('galleryCols')||5,gap:+localStorage.getItem('galleryGap')||10,theme:localStorage.getItem('galleryTheme')||'light',current:null};
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const gallery=$('#gallery'),empty=$('#empty'),fileInput=$('#csvFile'),dropZone=$('#dropZone'),fileStatus=$('#fileStatus'),search=$('#search'),lightbox=$('#lightbox'),settings=$('#settings');
+function parseCSV(text){const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;continue}if(c==='"'){q=!q;continue}if(c===','&&!q){row.push(cell.trim());cell='';continue}if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell.trim());cell='';if(row.some(Boolean))rows.push(row);row=[];continue}cell+=c}if(cell||row.length){row.push(cell.trim());rows.push(row)}if(!rows.length)return[];const h=rows.shift().map(x=>x.toLowerCase().replace(/^\ufeff/,''));return rows.map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return normalize(o)}).filter(x=>x.image_url||x.video_url)}
+function normalize(o){const get=(...ks)=>{for(const k of ks)if(o[k]!==undefined&&o[k]!=='' )return o[k];return''};const type=(get('type','media_type')||((get('video_url').match(/\.(mp4|webm|mov)(\?|$)/i))?'video':'image')).toLowerCase();let tags=get('tags','tag').split(/[|;]/).map(x=>x.trim()).filter(Boolean);return{id:get('id')||crypto.randomUUID(),image_url:get('image_url','image','url','thumbnail_url'),video_url:get('video_url'),thumbnail_url:get('thumbnail_url','image_url','image','url'),title:get('title','name')||'Untitled',prompt:get('prompt','description'),author:get('author','username','user')||'Unknown',likes:Number(get('likes','like_count'))||0,type:type==='video'?'video':'image',created_at:get('created_at','date','created')||'',tags}};
+async function loadCSVText(text,name='CSV'){state.items=parseCSV(text);state.page=0;fileStatus.textContent=`${name} · ${state.items.length.toLocaleString()}개 항목`;renderTags();render();toast(`${state.items.length}개 항목을 불러왔습니다`)}
+async function autoLoad(){try{const r=await fetch('images.csv',{cache:'no-store'});if(r.ok)await loadCSVText(await r.text(),'images.csv')}catch(e){}render()}
+function filtered(){let a=state.items.filter(x=>state.view==='liked'?!!state.likes[x.id]:true);if(state.type!=='all')a=a.filter(x=>x.type===state.type);if(state.tag)a=a.filter(x=>x.tags.includes(state.tag));const q=state.query.toLowerCase();if(q)a=a.filter(x=>[x.title,x.prompt,x.author,...x.tags].join(' ').toLowerCase().includes(q));a.sort((x,y)=>state.sort==='likes'?(y.likes+liked(y.id))-(x.likes+liked(x.id)):state.sort==='new'?dateNum(y.created_at)-dateNum(x.created_at):(y.likes+liked(y.id))-(x.likes+liked(x.id)));return a}
+const dateNum=s=>{const n=Date.parse(s);return Number.isNaN(n)?0:n};const liked=id=>state.likes[id]?1:0;
+function render(){const a=filtered();$('#resultCount').textContent=`${a.length.toLocaleString()} ${state.type==='video'?'videos':'images'}`;$('#activeInfo').textContent=state.query?`· “${state.query}”`:'';$('#likeCount').textContent=Object.keys(state.likes).length;empty.classList.toggle('hidden',state.items.length>0);gallery.innerHTML='';state.page=0;appendPage(a);}
+function appendPage(a=filtered()){const start=state.page*state.pageSize,end=Math.min(start+state.pageSize,a.length);a.slice(start,end).forEach(item=>gallery.appendChild(card(item)));state.page++;}
+function card(item){const el=document.createElement('article');el.className='card';el.dataset.id=item.id;const media=item.type==='video'?document.createElement('video'):document.createElement('img');if(item.type==='video'){media.src=item.video_url||item.image_url;media.poster=item.thumbnail_url;media.muted=true;media.loop=true;media.playsInline=true;media.preload='metadata'}else{media.src=item.image_url;media.loading='lazy';media.alt=item.title}media.onerror=()=>el.remove();el.appendChild(media);if(item.type==='video'){const b=document.createElement('span');b.className='video-badge';b.textContent='▶ VIDEO';el.appendChild(b)}const h=document.createElement('button');h.className='heart'+(liked(item.id)?' liked':'');h.textContent=liked(item.id)?'♥':'♡';h.onclick=e=>{e.stopPropagation();toggleLike(item.id);h.classList.toggle('liked',liked(item.id));h.textContent=liked(item.id)?'♥':'♡';};el.appendChild(h);const ov=document.createElement('div');ov.className='card-overlay';ov.innerHTML=`<div class="card-title"></div><div class="card-meta"></div>`;ov.querySelector('.card-title').textContent=item.title;ov.querySelector('.card-meta').textContent=`@${item.author} · ♥ ${item.likes+liked(item.id)}`;el.appendChild(ov);el.onclick=()=>openDetail(item);return el}
+function toggleLike(id){if(state.likes[id])delete state.likes[id];else state.likes[id]=1;localStorage.setItem('exploreLikes',JSON.stringify(state.likes));$('#likeCount').textContent=Object.keys(state.likes).length;if(state.view==='liked')render();else toast(state.likes[id]?'좋아요에 추가했습니다':'좋아요에서 삭제했습니다')}
+function openDetail(item){state.current=item;const m=$('#lightboxMedia');m.innerHTML='';const media=item.type==='video'?document.createElement('video'):document.createElement('img');if(item.type==='video'){media.src=item.video_url||item.image_url;media.poster=item.thumbnail_url;media.controls=true;media.autoplay=true}else{media.src=item.image_url;media.alt=item.title}m.appendChild(media);$('#detailAuthor').textContent='@'+item.author;$('#detailTitle').textContent=item.title;$('#detailPrompt').textContent=item.prompt||'프롬프트가 없습니다.';$('#detailMeta').innerHTML=`좋아요 ${item.likes+liked(item.id)} · ${item.type} · ${item.created_at||'날짜 없음'}`;$('#detailLike').textContent=liked(item.id)?'♥':'♡';$('#detailLike').classList.toggle('liked',liked(item.id));$('#detailTags').innerHTML=item.tags.map(t=>`<span>#${escapeHTML(t)}</span>`).join('');lightbox.showModal()}
+function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderTags(){const tags=[...new Set(state.items.flatMap(x=>x.tags))].slice(0,40);$('#tagbar').innerHTML=tags.map(t=>`<button data-tag="${escapeHTML(t)}">#${escapeHTML(t)}</button>`).join('');$$('#tagbar button').forEach(b=>b.onclick=()=>{state.tag=state.tag===b.dataset.tag?'':b.dataset.tag;$$('#tagbar button').forEach(x=>x.classList.toggle('active',x.dataset.tag===state.tag));render()})}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800)}
+fileInput.onchange=async e=>{const f=e.target.files[0];if(f)await loadCSVText(await f.text(),f.name)};
+dropZone.ondragover=e=>{e.preventDefault();dropZone.classList.add('drag')};dropZone.ondragleave=()=>dropZone.classList.remove('drag');dropZone.ondrop=async e=>{e.preventDefault();dropZone.classList.remove('drag');const f=[...e.dataTransfer.files].find(x=>x.name.toLowerCase().endsWith('.csv'));if(f)await loadCSVText(await f.text(),f.name);else toast('CSV 파일을 놓아주세요')};
+$('#importBtn').onclick=()=>fileInput.click();$('#refreshBtn').onclick=()=>{state.query='';search.value='';state.tag='';render()};$('#tagBtn').onclick=()=>$('#tagbar').classList.toggle('hidden');
+$$('.tab').forEach(b=>b.onclick=()=>{$$('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.sort=b.dataset.sort;render()});
+$$('.filter').forEach(b=>{if(b.dataset.type)b.onclick=()=>{$$('.filter[data-type]').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.type=b.dataset.type;render()}});
+search.oninput=e=>{state.query=e.target.value.trim();render()};
+$$('.nav-item[data-view]').forEach(b=>b.onclick=()=>{$$('.nav-item[data-view]').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.view=b.dataset.view;render()});
+$('#detailLike').onclick=()=>{toggleLike(state.current.id);openDetail(state.current)};$('#copyPrompt').onclick=async()=>{try{await navigator.clipboard.writeText(state.current.prompt||'');toast('프롬프트를 복사했습니다')}catch(e){toast('복사할 수 없습니다')}};$('#openOriginal').onclick=()=>window.open(state.current.type==='video'?(state.current.video_url||state.current.image_url):state.current.image_url,'_blank');$('#closeLightbox').onclick=()=>lightbox.close();lightbox.addEventListener('click',e=>{if(e.target===lightbox)lightbox.close()});
+$('#settingsBtn').onclick=()=>{settings.showModal();$('#columnRange').value=state.columns;$('#gapRange').value=state.gap;$('#columnValue').textContent=state.columns;$('#gapValue').textContent=state.gap+'px'};$('#columnRange').oninput=e=>{state.columns=+e.target.value;document.documentElement.style.setProperty('--cols',state.columns);$('#columnValue').textContent=state.columns;localStorage.setItem('galleryCols',state.columns)};$('#gapRange').oninput=e=>{state.gap=+e.target.value;document.documentElement.style.setProperty('--gap',state.gap+'px');$('#gapValue').textContent=state.gap+'px';localStorage.setItem('galleryGap',state.gap)};
+$('#themeBtn').onclick=()=>{state.theme=state.theme==='dark'?'light':'dark';document.body.classList.toggle('dark',state.theme==='dark');localStorage.setItem('galleryTheme',state.theme)};$('#densityBtn').onclick=()=>{state.columns=state.columns>=7?3:state.columns+1;document.documentElement.style.setProperty('--cols',state.columns);localStorage.setItem('galleryCols',state.columns);toast(`열 ${state.columns}개`) };$('#helpBtn').onclick=()=>toast('CSV: id,image_url,title,prompt,author,likes,type,created_at,tags');$('#sampleBtn').onclick=()=>{state.view='all';render()};
+const observer=new IntersectionObserver(entries=>{if(entries[0].isIntersecting&&state.page*state.pageSize<filtered().length)appendPage()}, {rootMargin:'800px'});observer.observe($('#sentinel'));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&lightbox.open)lightbox.close();if(e.key==='/'&&document.activeElement!==search){e.preventDefault();search.focus()}});
+document.documentElement.style.setProperty('--cols',state.columns);document.documentElement.style.setProperty('--gap',state.gap+'px');document.body.classList.toggle('dark',state.theme==='dark');autoLoad();
