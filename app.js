@@ -1,7 +1,29 @@
 const state={items:[],sort:'top',type:'all',query:'',tag:'',view:'explore',likes:JSON.parse(localStorage.getItem('exploreLikes')||'{}'),page:0,pageSize:30,columns:+localStorage.getItem('galleryCols')||5,gap:+localStorage.getItem('galleryGap')||10,theme:localStorage.getItem('galleryTheme')||'light',current:null};
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const gallery=$('#gallery'),empty=$('#empty'),fileInput=$('#csvFile'),dropZone=$('#dropZone'),fileStatus=$('#fileStatus'),search=$('#search'),lightbox=$('#lightbox'),settings=$('#settings');
-function parseCSV(text){const rows=[];let row=[],cell='',q=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;continue}if(c==='"'){q=!q;continue}if(c===','&&!q){row.push(cell.trim());cell='';continue}if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell.trim());cell='';if(row.some(Boolean))rows.push(row);row=[];continue}cell+=c}if(cell||row.length){row.push(cell.trim());rows.push(row)}if(!rows.length)return[];const h=rows.shift().map(x=>x.toLowerCase().replace(/^\ufeff/,''));return rows.map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return normalize(o)}).filter(x=>x.image_url||x.video_url)}
+function parseCSV(text){
+    const rows=[];
+    let row=[],cell='',q=false;
+    for(let i=0;i<text.length;i++){
+        const c=text[i],n=text[i+1];
+        if(c==='"'&&q&&n==='"'){
+            cell+='"';
+            i++;continue
+        }
+        if(c==='"'){
+            q=!q;continue
+        }
+        if(c===','&&!q){
+            row.push(cell.trim());
+            cell='';
+            continue
+        }
+        if((c==='\n'||c==='\r')&&!q){
+            if(c==='\r'&&n==='\n')
+                i++;
+            row.push(cell.trim());
+            cell='';
+            if(row.some(Boolean))rows.push(row);row=[];continue}cell+=c}if(cell||row.length){row.push(cell.trim());rows.push(row)}if(!rows.length)return[];const h=rows.shift().map(x=>x.toLowerCase().replace(/^\ufeff/,''));return rows.map(r=>{const o={};h.forEach((k,i)=>o[k]=r[i]??'');return normalize(o)}).filter(x=>x.image_url||x.video_url)}
 function normalize(o){const get=(...ks)=>{for(const k of ks)if(o[k]!==undefined&&o[k]!=='' )return o[k];return''};const type=(get('type','media_type')||((get('video_url').match(/\.(mp4|webm|mov)(\?|$)/i))?'video':'image')).toLowerCase();let tags=get('tags','tag').split(/[|;]/).map(x=>x.trim()).filter(Boolean);return{id:get('id')||crypto.randomUUID(),image_url:get('image_url','image','url','thumbnail_url'),video_url:get('video_url'),thumbnail_url:get('thumbnail_url','image_url','image','url'),title:get('title','name')||'Untitled',prompt:get('prompt','description'),author:get('author','username','user')||'Unknown',likes:Number(get('likes','like_count'))||0,type:type==='video'?'video':'image',created_at:get('created_at','date','created')||'',tags}};
 async function loadCSVText(text,name='CSV'){state.items=parseCSV(text);state.page=0;fileStatus.textContent=`${name} · ${state.items.length.toLocaleString()}개 항목`;renderTags();render();toast(`${state.items.length}개 항목을 불러왔습니다`)}
 async function autoLoad(){try{const r=await fetch('images.csv',{cache:'no-store'});if(r.ok)await loadCSVText(await r.text(),'images.csv')}catch(e){}render()}
